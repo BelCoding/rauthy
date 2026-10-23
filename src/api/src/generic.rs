@@ -39,30 +39,53 @@ use tracing::{error, info, warn};
 use validator::Validate;
 
 pub static I18N_CONFIG: LazyLock<String> = LazyLock::new(|| {
-    let common = RauthyConfig::get().vars.i18n.filter_lang_common
+    let custom = rauthy_data::i18n_custom::get();
+    let is_valid = |v: &str| {
+        [
+            "de", "en", "es", "fr", "ja", "ko", "nb", "nl", "pt", "ru", "uk", "zhhans",
+        ]
+        .contains(&v)
+            || custom.langs.contains(&v)
+    };
+
+    let mut common = RauthyConfig::get().vars.i18n.filter_lang_common
         .iter()
         .map(|v| {
-                if !["de", "en", "es", "fr", "ja", "ko", "nb", "nl", "pt", "ru", "uk", "zhhans"].contains(&v.as_ref()) {
-                    panic!("Invalid config for `i18n.filter_lang_common`.\nAllowed values: en de es fr ja ko nb nl pt ru uk zhhans\nfound: {v}");
+                if !is_valid(v.as_ref()) {
+                    panic!("Invalid config for `i18n.filter_lang_common`.\nAllowed values: en de es fr ja ko nb nl pt ru uk zhhans + `i18n.custom_dir` languages\nfound: {v}");
                 }
                 Language::from(v.as_ref()).into()
         })
         .collect::<Vec<_>>();
 
-    let admin = RauthyConfig::get()
+    let mut admin = RauthyConfig::get()
         .vars
         .i18n
         .filter_lang_admin
         .iter()
         .map(|v| {
-            if !["de", "en", "es", "fr", "ja", "ko", "nb", "nl", "pt", "ru", "uk", "zhhans"].contains(&v.as_ref()) {
+            if !is_valid(v.as_ref()) {
                 panic!(
-                    "Invalid config for `i18n.filter_lang_admin`\nAllowed values: en de es fr ja ko nb nl pt ru uk zhhans\nfound: {v}",
+                    "Invalid config for `i18n.filter_lang_admin`\nAllowed values: en de es fr ja ko nb nl pt ru uk zhhans + `i18n.custom_dir` languages\nfound: {v}",
                 );
             }
             Language::from(v.as_ref()).into()
         })
         .collect::<Vec<_>>();
+
+    // languages with runtime catalogs are always selectable
+    for code in custom.common_codes() {
+        let lang = rauthy_api_types::generic::Language::Custom(code.to_string());
+        if !common.contains(&lang) {
+            common.push(lang);
+        }
+    }
+    for code in custom.admin_codes() {
+        let lang = rauthy_api_types::generic::Language::Custom(code.to_string());
+        if !admin.contains(&lang) {
+            admin.push(lang);
+        }
+    }
 
     serde_json::to_string(&I18nConfigResponse { common, admin }).unwrap()
 });
@@ -193,6 +216,44 @@ pub async fn get_i18n_config() -> Result<HttpResponse, ErrorResponse> {
         .insert_header((CONTENT_TYPE, APPLICATION_JSON))
         .insert_header((CACHE_CONTROL, "max-age=300, stale-while-revalidate=2592000"))
         .body(&**I18N_CONFIG))
+}
+
+/// Returns a UI translation catalog for a language from `i18n.custom_dir`
+///
+/// The response mirrors the shape of the built-in catalogs
+/// (`frontend/src/i18n/{common,admin}/interface.ts`). Only languages served
+/// from `i18n.custom_dir` exist here — built-in languages are compiled into
+/// the frontend and return a 404.
+#[utoipa::path(
+    get,
+    path = "/i18n/{typ}/{lang}",
+    tag = "generic",
+    responses(
+        (status = 200, description = "Ok"),
+        (status = 404, description = "NotFound"),
+    ),
+)]
+#[get("/i18n/{typ}/{lang}")]
+pub async fn get_i18n_custom(
+    path: web::Path<(String, String)>,
+) -> Result<HttpResponse, ErrorResponse> {
+    let (typ, lang) = path.into_inner();
+    let custom = rauthy_data::i18n_custom::get();
+    let body = match typ.as_str() {
+        "common" => custom.common_json(&lang),
+        "admin" => custom.admin_json(&lang),
+        _ => None,
+    };
+    match body {
+        Some(body) => Ok(HttpResponse::Ok()
+            .insert_header((CONTENT_TYPE, APPLICATION_JSON))
+            .insert_header((CACHE_CONTROL, "max-age=300, stale-while-revalidate=2592000"))
+            .body(body)),
+        None => Err(ErrorResponse::new(
+            ErrorResponseType::NotFound,
+            "no custom i18n for this language",
+        )),
+    }
 }
 
 /// Returns the current Argon2ID parameters and the login time

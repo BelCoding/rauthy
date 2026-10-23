@@ -1,14 +1,15 @@
+use crate::i18n_custom;
 use actix_web::HttpRequest;
 use actix_web::http::header::{ACCEPT_LANGUAGE, HeaderValue};
 use rauthy_common::constants::COOKIE_LOCALE;
 use rauthy_error::{ErrorResponse, ErrorResponseType};
-use serde::{Deserialize, Serialize};
+use serde::de::Error as _;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 use tracing::debug;
 
 // Note: Updating this enum will require an update on the LANGUAGES constant for the frontend too
-#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize, strum::EnumIter)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum Language {
     De,
     #[default]
@@ -23,15 +24,39 @@ pub enum Language {
     Ru,
     Uk,
     ZhHans,
+    /// A language registered at runtime via `i18n.custom_dir`. The value is
+    /// interned at startup (`i18n_custom::init()`), which keeps the enum
+    /// `Copy` and the code `'static`.
+    Custom(&'static str),
+}
+
+// Wire / storage format stays a plain lowercase string — a derived serde
+// impl would externally tag the `Custom` variant.
+impl Serialize for Language {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for Language {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        if s.is_empty() {
+            return Err(D::Error::custom("empty language code"));
+        }
+        Ok(Self::from(s.as_str()))
+    }
 }
 
 impl Language {
-    pub fn all_available() -> [&'static str; 25] {
-        [
+    pub fn all_available() -> Vec<&'static str> {
+        let mut res = vec![
             "en", "en-US", "de", "de-DE", "es", "es-ES", "fr", "fr-FR", "ja", "ja-JP", "ko",
             "ko-KR", "nb", "nb-NO", "no-NO", "nl", "nl-NL", "pt", "pt-PT", "ru", "ru-RU", "uk",
             "uk-UA", "zh", "zh-Hans",
-        ]
+        ];
+        res.extend_from_slice(&i18n_custom::get().langs);
+        res
     }
 
     pub fn as_str(&self) -> &'static str {
@@ -49,6 +74,7 @@ impl Language {
             Language::Ru => "ru",
             Language::Uk => "uk",
             Language::ZhHans => "zhhans",
+            Language::Custom(code) => code,
         }
     }
 
@@ -71,6 +97,7 @@ impl Language {
             Language::Ru => "ru-RU",
             Language::Uk => "uk-UA",
             Language::ZhHans => "zh-Hans",
+            Language::Custom(code) => code,
         }
     }
 }
@@ -108,7 +135,10 @@ impl From<&str> for Language {
             "ru" | "ru-RU" => Self::Ru,
             "uk" | "uk-UA" => Self::Uk,
             "zh" | "zhhans" | "zh-hans" | "zh-Hans" => Self::ZhHans,
-            _ => Self::default(),
+            other => match i18n_custom::find_code(other) {
+                Some(code) => Self::Custom(code),
+                None => Self::default(),
+            },
         }
     }
 }
@@ -156,6 +186,14 @@ impl From<rauthy_api_types::generic::Language> for Language {
             rauthy_api_types::generic::Language::Ru => Self::Ru,
             rauthy_api_types::generic::Language::Uk => Self::Uk,
             rauthy_api_types::generic::Language::ZhHans => Self::ZhHans,
+            // only codes registered via `i18n.custom_dir` are accepted —
+            // anything else falls back to the default (and is never interned)
+            rauthy_api_types::generic::Language::Custom(code) => {
+                match i18n_custom::find_code(&code) {
+                    Some(code) => Self::Custom(code),
+                    None => Self::default(),
+                }
+            }
         }
     }
 }
@@ -175,6 +213,7 @@ impl From<Language> for rauthy_api_types::generic::Language {
             Language::Ru => Self::Ru,
             Language::Uk => Self::Uk,
             Language::ZhHans => Self::ZhHans,
+            Language::Custom(code) => Self::Custom(code.to_string()),
         }
     }
 }

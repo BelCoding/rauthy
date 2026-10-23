@@ -32,8 +32,7 @@ pub enum I18nContent {
     Register,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, PartialEq)]
 pub enum Language {
     De,
     En,
@@ -47,7 +46,75 @@ pub enum Language {
     Ru,
     Uk,
     ZhHans,
+    /// A runtime language from `i18n.custom_dir` — on the wire this is the
+    /// plain code, exactly like the built-in variants.
+    Custom(String),
 }
+
+impl Language {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::De => "de",
+            Self::En => "en",
+            Self::Es => "es",
+            Self::Fr => "fr",
+            Self::Ja => "ja",
+            Self::Ko => "ko",
+            Self::Nb => "nb",
+            Self::Nl => "nl",
+            Self::Pt => "pt",
+            Self::Ru => "ru",
+            Self::Uk => "uk",
+            Self::ZhHans => "zhhans",
+            Self::Custom(code) => code,
+        }
+    }
+}
+
+// Manual impls keep the wire format a plain lowercase string ("de", "pt", ...)
+// — identical to the previous derived enum for all built-in values.
+impl serde::Serialize for Language {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Language {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        Ok(match s.as_str() {
+            "de" => Self::De,
+            "en" => Self::En,
+            "es" => Self::Es,
+            "fr" => Self::Fr,
+            "ja" => Self::Ja,
+            "ko" => Self::Ko,
+            "nb" => Self::Nb,
+            "nl" => Self::Nl,
+            "pt" => Self::Pt,
+            "ru" => Self::Ru,
+            "uk" => Self::Uk,
+            "zhhans" => Self::ZhHans,
+            _ => Self::Custom(s),
+        })
+    }
+}
+
+impl utoipa::PartialSchema for Language {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        utoipa::openapi::ObjectBuilder::new()
+            .schema_type(utoipa::openapi::schema::SchemaType::Type(
+                utoipa::openapi::schema::Type::String,
+            ))
+            .description(Some(
+                "A lowercase language code: one of the built-in languages or a \
+                 code registered via `i18n.custom_dir`",
+            ))
+            .into()
+    }
+}
+
+impl utoipa::ToSchema for Language {}
 
 #[derive(Deserialize, Validate, ToSchema, IntoParams)]
 pub struct LogoParams {

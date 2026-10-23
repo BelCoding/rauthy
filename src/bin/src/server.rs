@@ -67,7 +67,6 @@ pub async fn run(
     )
     .await?;
     rauthy_config.init_static();
-    init_static_vars::trigger().await;
 
     if !logging::is_log_fmt_json() {
         println!(
@@ -92,6 +91,12 @@ pub async fn run(
     let log_level = setup_logging();
     info!("Starting Rauthy v{RAUTHY_VERSION} ({})", *BUILD_TIME);
     info!("Log Level set to '{log_level}'");
+
+    // Load `i18n.custom_dir` after logging is up (it reports skipped files)
+    // and before the static vars trigger: `I18N_CONFIG`, `Language` parsing
+    // and the E-Mail builders all read this registry.
+    rauthy_data::i18n_custom::init();
+    init_static_vars::trigger().await;
     if test_mode {
         warn!("Application started in Integration Test Mode");
     }
@@ -746,6 +751,7 @@ fn api_services() -> actix_web::Scope {
                 .service(oidc::get_well_known_oauth)
                 .service(generic::get_health)
                 .service(generic::get_i18n_config)
+                .service(generic::get_i18n_custom)
                 .service(generic::get_ready)
                 .service(swagger_ui::get_openapi_doc)
                 .service(swagger_ui::get_swagger_ui)

@@ -48,7 +48,20 @@ const i18nMap: Record<string, I18nAdmin> = {
     zh: I18nAdminZh,
 };
 
-export function initI18nAdmin() {
+/** See `initI18n()` — same contract for the Admin UI catalog. */
+export function initI18nAdmin(): void | Promise<void> {
     let lang = useLang();
-    _i18n = i18nMap[lang] ?? I18nAdminEn;
+    let compiled = i18nMap[lang];
+    if (compiled) {
+        _i18n = compiled;
+        return;
+    }
+    _i18n = I18nAdminEn;
+    return fetch(`/auth/v1/i18n/admin/${lang}`)
+        .then(async res => {
+            if (res.ok) {
+                _i18n = (await res.json()) as I18nAdmin;
+            }
+        })
+        .catch(() => {});
 }

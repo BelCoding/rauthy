@@ -113,9 +113,10 @@ impl WellKnown {
 
         // Filter all available languages
         let langs = &RauthyConfig::get().vars.i18n.filter_lang_common;
+        let custom = &crate::i18n_custom::get().langs;
         let ui_locales_supported = Language::all_available()
             .into_iter()
-            .filter(|l| langs.iter().any(|f| l.starts_with(&f.as_ref()[..2])))
+            .filter(|l| custom.contains(l) || langs.iter().any(|f| l.starts_with(&f.as_ref()[..2])))
             .collect::<Vec<&str>>();
 
         WellKnown {
