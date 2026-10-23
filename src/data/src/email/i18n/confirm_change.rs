@@ -10,6 +10,13 @@ pub struct I18nEmailConfirmChange<'a> {
 
 impl I18nEmailConfirmChange<'_> {
     pub fn build(lang: &Language) -> Self {
+        if let Some(o) = crate::i18n_custom::email(lang).and_then(|o| o.confirm_change.as_ref()) {
+            return Self {
+                subject: &o.subject,
+                msg: &o.msg,
+                msg_from_admin: &o.msg_from_admin,
+            };
+        }
         match lang {
             Language::De => Self::build_de(),
             Language::En => Self::build_en(),
@@ -23,6 +30,7 @@ impl I18nEmailConfirmChange<'_> {
             Language::Ru => Self::build_ru(),
             Language::Uk => Self::build_uk(),
             Language::ZhHans => Self::build_zh_hans(),
+            Language::Custom(_) => Self::build_en(),
         }
     }
 }

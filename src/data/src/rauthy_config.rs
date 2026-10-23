@@ -582,6 +582,7 @@ impl Default for Vars {
                     "uk".into(),
                     "zhhans".into(),
                 ],
+                custom_dir: None,
             },
             lifetimes: VarsLifetimes {
                 refresh_token_grace_time: Duration::from_secs(5),
@@ -3157,6 +3158,9 @@ impl Vars {
         if let Some(v) = t_str_vec(&mut table, "i18n", "filter_lang_admin", "FILTER_LANG_ADMIN") {
             self.i18n.filter_lang_admin = v.into_iter().map(Cow::from).collect::<Vec<_>>();
         }
+        if let Some(v) = t_str(&mut table, "i18n", "custom_dir", "I18N_CUSTOM_DIR") {
+            self.i18n.custom_dir = Some(v.into());
+        }
 
         check_table_empty(table, "i18n");
     }
@@ -4577,6 +4581,8 @@ pub struct VarsHttpClient {
 pub struct VarsI18n {
     pub filter_lang_common: Vec<Cow<'static, str>>,
     pub filter_lang_admin: Vec<Cow<'static, str>>,
+    /// Directory with runtime i18n: `<dir>/<code>/{common.json,admin.json,email.json}`
+    pub custom_dir: Option<Cow<'static, str>>,
 }
 
 #[derive(Debug)]

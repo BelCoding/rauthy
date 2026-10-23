@@ -14,9 +14,17 @@
         children: Snippet;
     } = $props();
 
-    initI18nAdmin();
+    // a Promise comes back only for languages served from `i18n.custom_dir`
+    const i18nAdminReady = initI18nAdmin();
+    let i18nAdminLoaded = $state(!i18nAdminReady);
 
-    let ta = useI18nAdmin();
+    let ta = $state(useI18nAdmin());
+    if (i18nAdminReady) {
+        i18nAdminReady.then(() => {
+            ta = useI18nAdmin();
+            i18nAdminLoaded = true;
+        });
+    }
     let session = useSession('admin');
 
     let innerWidth: undefined | number = $state();
@@ -79,7 +87,9 @@
     <NavSide />
     <Main>
         <div class="content">
-            {@render children()}
+            {#if i18nAdminLoaded}
+                {@render children()}
+            {/if}
         </div>
         {#if innerWidth && innerWidth > 1024}
             <div class="events">

@@ -43,6 +43,10 @@ impl From<&'static VarsTemplate> for I18nEmailPasswordNew<'_> {
 
 impl I18nEmailPasswordNew<'_> {
     pub fn build(lang: &Language) -> Self {
+        if let Some(tpl) = crate::i18n_custom::email(lang).and_then(|o| o.tpl_password_new.as_ref())
+        {
+            return tpl.into();
+        }
         let tpls = &RauthyConfig::get().vars.templates.password_new;
         match lang {
             Language::De => (&tpls.de).into(),
@@ -57,6 +61,7 @@ impl I18nEmailPasswordNew<'_> {
             Language::Ru => (&tpls.ru).into(),
             Language::Uk => (&tpls.uk).into(),
             Language::ZhHans => (&tpls.zhhans).into(),
+            Language::Custom(_) => (&tpls.en).into(),
         }
     }
 }

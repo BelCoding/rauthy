@@ -12,6 +12,15 @@ pub struct I18nEmailResetInfo<'a> {
 
 impl I18nEmailResetInfo<'_> {
     pub fn build(lang: &Language) -> Self {
+        if let Some(o) = crate::i18n_custom::email(lang).and_then(|o| o.reset_info.as_ref()) {
+            return Self {
+                subject: &o.subject,
+                expires_1: &o.expires_1,
+                expires_2: &o.expires_2,
+                update: &o.update,
+                button_text: &o.button_text,
+            };
+        }
         match lang {
             Language::De => Self::build_de(),
             Language::En => Self::build_en(),
@@ -25,6 +34,7 @@ impl I18nEmailResetInfo<'_> {
             Language::Ru => Self::build_ru(),
             Language::Uk => Self::build_uk(),
             Language::ZhHans => Self::build_zh_hans(),
+            Language::Custom(_) => Self::build_en(),
         }
     }
 }

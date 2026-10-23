@@ -37,6 +37,7 @@
   - [Resource Indicators (RFC 8707)](work/resource_indicators.md)
   - [Token Exchange (RFC 8693)](work/token_exchange.md)
   - [E-Mail Templates](work/email_templates.md)
+  - [Custom i18n at Runtime](work/i18n_custom.md)
   - [IP Blacklisting](work/ip_blacklist.md)
   - [JSON Web Keys](work/jwks.md)
   - [I18n](work/i18n.md)

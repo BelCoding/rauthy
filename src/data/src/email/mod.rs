@@ -37,7 +37,9 @@ fn email_ts_prettify_with(
         .and_then(|tz| Tz::from_str(tz).ok())
         .unwrap_or_else(|| Tz::from_str(&config.tz_fallback).unwrap());
 
+    let custom_fmt = crate::i18n_custom::email(lang).and_then(|o| o.tz_fmt.as_deref());
     let fmt_str = match lang {
+        _ if custom_fmt.is_some() => custom_fmt.unwrap_or_default(),
         Language::De => config.de.as_ref(),
         Language::En => config.en.as_ref(),
         Language::Es => config.es.as_ref(),
@@ -50,6 +52,7 @@ fn email_ts_prettify_with(
         Language::Ru => config.ru.as_ref(),
         Language::Uk => config.uk.as_ref(),
         Language::ZhHans => config.zhhans.as_ref(),
+        Language::Custom(_) => config.en.as_ref(),
     };
 
     dt.with_timezone(&tz).format(fmt_str).to_string()

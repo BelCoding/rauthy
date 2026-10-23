@@ -48,7 +48,26 @@ const i18nMap: Record<string, I18n> = {
     zh: I18nZh,
 };
 
-export function initI18n() {
+/**
+ * Sync (and returns nothing) for every compiled language. For a language
+ * served from the backend's `i18n.custom_dir`, the catalog is fetched and a
+ * Promise is returned — the layout delays rendering its children until it
+ * resolves, so every component still reads a final, stable value.
+ */
+export function initI18n(): void | Promise<void> {
     let lang = useLang();
-    _i18n = i18nMap[lang] ?? I18nEn;
+    let compiled = i18nMap[lang];
+    if (compiled) {
+        _i18n = compiled;
+        return;
+    }
+    // fallback in case the fetch fails - never render without a catalog
+    _i18n = I18nEn;
+    return fetch(`/auth/v1/i18n/common/${lang}`)
+        .then(async res => {
+            if (res.ok) {
+                _i18n = (await res.json()) as I18n;
+            }
+        })
+        .catch(() => {});
 }

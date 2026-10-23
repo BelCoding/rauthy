@@ -2117,6 +2117,23 @@ max_hash_threads = 2
 #"""
 
 [i18n]
+# You can serve additional UI languages and override E-Mail texts at
+# runtime, without rebuilding Rauthy. The directory must contain one
+# sub-directory per 2-letter lowercase language code, each with any of:
+#
+#   <custom_dir>/<code>/common.json   UI catalog for login / account pages
+#   <custom_dir>/<code>/admin.json    UI catalog for the Admin UI
+#   <custom_dir>/<code>/email.json    E-Mail texts (works for built-in
+#                                     languages too and then overrides them)
+#
+# The JSON keys mirror the built-in catalogs 1:1 — see
+# `book/src/work/i18n_custom.md` for the full reference. Everything is
+# loaded once at startup; invalid files are logged and skipped.
+#
+# default: not set
+# overwritten by: I18N_CUSTOM_DIR
+#custom_dir = '/app/i18n'
+
 # Can be set to filter the languages to show in the UI. If not
 # set, all available i18n translations will be shown in the
 # language selector.

@@ -6,7 +6,12 @@
     import '../css/global.css';
 
     initLang();
-    initI18n();
+    // a Promise comes back only for languages served from `i18n.custom_dir`
+    const i18nReady = initI18n();
+    let i18nLoaded = $state(!i18nReady);
+    if (i18nReady) {
+        i18nReady.then(() => (i18nLoaded = true));
+    }
 
     let {
         children,
@@ -39,7 +44,9 @@
         </p>
     </div>
 {:else if cookiesEnabled}
-    {@render children()}
+    {#if i18nLoaded}
+        {@render children()}
+    {/if}
 {:else}
     <div>
         <h1>Cookies disabled</h1>

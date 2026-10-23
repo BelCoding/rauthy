@@ -31,6 +31,11 @@ impl From<&'static VarsTemplate> for I18nEmailRegisteredAlready<'_> {
 
 impl I18nEmailRegisteredAlready<'_> {
     pub fn build(lang: &Language) -> Self {
+        if let Some(tpl) =
+            crate::i18n_custom::email(lang).and_then(|o| o.tpl_email_registered_already.as_ref())
+        {
+            return tpl.into();
+        }
         let tpls = &RauthyConfig::get().vars.templates.email_registered_already;
         match lang {
             Language::De => (&tpls.de).into(),
@@ -45,6 +50,7 @@ impl I18nEmailRegisteredAlready<'_> {
             Language::Ru => (&tpls.ru).into(),
             Language::Uk => (&tpls.uk).into(),
             Language::ZhHans => (&tpls.zhhans).into(),
+            Language::Custom(_) => (&tpls.en).into(),
         }
     }
 }
